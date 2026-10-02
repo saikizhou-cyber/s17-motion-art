@@ -1,0 +1,23 @@
+# caches
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+node_modules/
+.venv*/
+# never commit credentials, generation state or chat exports
+.env
+.env.*
+auth*.json
+credentials*
+*.pem
+*.key
+state_*.json
+run_*.json
+messages.md
+*.jsonl
+.claude/
+# render output and reference-derived media
+out/
+*.mp4
+*.wav
