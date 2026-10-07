@@ -15,6 +15,11 @@ SR = 8000
 
 def pcm(path, seconds):
     try:
+        # a join without PV_AUDIO writes a silent file; say so instead of a cryptic ffmpeg error
+        has_audio = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'csv=p=0', path],
+                                   capture_output=True, text=True)
+        if has_audio.returncode == 0 and not has_audio.stdout.strip():
+            raise SystemExit(f'{path}: no audio stream (was PV_AUDIO set for the join?)')
         r = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-t', str(seconds), '-ac', '1', '-ar', str(SR), '-f', 's16le', '-'],
                            capture_output=True)
     except FileNotFoundError:

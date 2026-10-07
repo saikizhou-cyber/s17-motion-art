@@ -16,7 +16,7 @@ EXE = os.environ.get('JIMENG_CLI') or os.path.expanduser('~/bin/dreamina-canvas'
 
 def read(path):
     try:
-        with open(path, encoding='utf-8') as f:
+        with open(path, encoding='utf-8-sig') as f:  # Notepad / PowerShell 5.1 add a BOM
             return f.read().strip()
     except OSError as e:
         sys.exit(f'cannot read {path}: {e.strerror}')

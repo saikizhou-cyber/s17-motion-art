@@ -35,7 +35,7 @@ exe = os.environ.get('JIMENG_CLI') or os.path.expanduser('~/bin/dreamina-canvas'
 if not (os.path.isfile(exe) or shutil.which(exe)):
     sys.exit(f'Jimeng CLI not found: {exe} (install it, or set JIMENG_CLI to its path)')
 B = os.path.dirname(os.path.abspath(a.jobs))
-jobs = json.load(open(a.jobs, encoding='utf-8'))
+jobs = json.load(open(a.jobs, encoding='utf-8-sig'))
 if not isinstance(jobs, list):
     sys.exit(f'{a.jobs}: expected a JSON list of jobs')
 errs, seen = [], set()
@@ -50,7 +50,7 @@ for i, j in enumerate(jobs):
 if errs:
     sys.exit(f'{a.jobs}: bad jobs, nothing was run:\n  ' + '\n  '.join(errs))
 state_path = os.path.join(B, f'state_{a.tag}.json')
-state = json.load(open(state_path, encoding='utf-8')) if os.path.exists(state_path) else {}
+state = json.load(open(state_path, encoding='utf-8-sig')) if os.path.exists(state_path) else {}
 spent = sum(COST for v in state.values() if v.get('resource'))
 
 

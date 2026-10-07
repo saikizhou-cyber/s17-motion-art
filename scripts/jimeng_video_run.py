@@ -34,7 +34,7 @@ exe = os.environ.get('JIMENG_CLI') or os.path.expanduser('~/bin/dreamina-canvas'
 if not (os.path.isfile(exe) or shutil.which(exe)):
     sys.exit(f'Jimeng CLI not found: {exe} (install it, or set JIMENG_CLI to its path)')
 B = os.path.dirname(os.path.abspath(a.jobs))
-jobs = json.load(open(a.jobs, encoding='utf-8'))
+jobs = json.load(open(a.jobs, encoding='utf-8-sig'))
 if not isinstance(jobs, list):
     sys.exit(f'{a.jobs}: expected a JSON list of jobs')
 errs = []

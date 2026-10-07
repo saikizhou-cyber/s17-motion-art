@@ -3,7 +3,7 @@
 Commands that worked in the case study. Run from the Remotion project root unless noted. Paths use forward slashes (Git Bash on Windows, or any POSIX shell). `python` means a Python 3.10+ with Pillow, NumPy, SciPy (`python3` on macOS/Linux). The tools assume a 16:9, 30 fps reference and a 1280x720 composition named `PV`.
 
 ```bash
-export SKILL="$HOME/.claude/skills/reference-video-rebuild"   # or <project>/.claude/skills/reference-video-rebuild
+export SKILL="$HOME/.claude/skills/s17-motion-art"   # or <project>/.claude/skills/s17-motion-art
 export REF_VIDEO=../reference.mp4                              # used by compare.py and the sheet scripts
 # conform a reference that is not 16:9 / 30 fps
 ffmpeg -i in.mp4 -vf fps=30,scale=1280:720 -an ../reference.mp4
@@ -12,6 +12,9 @@ ffmpeg -i in.mp4 -vf fps=30,scale=1280:720 -an ../reference.mp4
 ## 1. Reference frames and comparison
 
 ```bash
+# first cut list + one labelled sheet per window that still needs a look (misses hide there)
+python $SKILL/scripts/cut_detect.py "$REF_VIDEO" --out cuts.json --sheets out/review/cuts
+python $SKILL/scripts/cut_detect.py "$REF_VIDEO" --truth            # audit an existing timeline.ts
 # 640x360 reference frames, file index = frame + 1 (the sheet scripts create these on first use)
 mkdir -p out/review/ref360
 ffmpeg -v error -y -i "$REF_VIDEO" -vf scale=640:360 -q:v 3 out/review/ref360/r_%04d.jpg
@@ -40,6 +43,9 @@ python $SKILL/scripts/frame_measure.py colors ref_985.png --region 0,0,1280,80  
 python $SKILL/scripts/frame_measure.py bbox ours_985.png --color 50,50,55 --tol 60  # where the grey figure sits
 python $SKILL/scripts/frame_measure.py components ref_942.png --thr 110            # white blobs: bbox + area
 python $SKILL/scripts/frame_measure.py iou ref_942.png ours_942.png                 # overlap of the bright masks
+# a move -> Remotion code: tracks a flat-coloured element, fits easing / spring, reports cadence
+python $SKILL/scripts/motion_fit.py "$REF_VIDEO" --from 785 --to 805 --color 254,30,32 --region 0,300,1280,720
+python $SKILL/scripts/motion_fit.py "$REF_VIDEO" --from 789 --to 801 --color 254,30,32 --channel z   # perspective fly-in
 ```
 
 - **Effect shapes** (a bullet trace, a slash, a shard): `components` gives each part's footprint (bbox, size), and the angle and timing come from the frames around it. Draw your OWN shape in that footprint (SVG polygons; fur or teeth as thin slivers along an edge with a seeded RNG), render, and use `iou` only to check size and placement. Do not trace the outline of someone else's artwork.
@@ -110,19 +116,17 @@ Play the result at rate 1. Check interpolated frames for ghosting around hair; f
 
 ```bash
 PV_SCALE=1.5 PV_CONC=2 node $SKILL/scripts/render-chunks.mjs 0-359 360-719 720-899 900-1078
-PV_AUDIO=public/audio/bgm.wav node $SKILL/scripts/render-chunks.mjs --join          # -> out/pv.mp4
+PV_AUDIO=public/audio/bgm.wav PV_LUFS=-14 node $SKILL/scripts/render-chunks.mjs --join   # -> out/pv.mp4, music mastered
 ffprobe -v error -show_entries stream=width,height,nb_frames -show_entries format=duration -of compact out/pv.mp4
-python $SKILL/scripts/audio_offset.py "$REF_VIDEO" out/pv.mp4                         # 0 ms while timing against the reference track
+python $SKILL/scripts/audio_offset.py "$REF_VIDEO" out/pv.mp4      # 0 ms while timing against the reference track
+python $SKILL/scripts/film_scan.py out/pv.mp4 --ref "$REF_VIDEO"   # freezes / black / flashes the reference lacks
+python $SKILL/scripts/beat_check.py grid music.wav                 # tempo grid before cutting to new music
+python $SKILL/scripts/beat_check.py check music.wav                # after a music swap: cuts vs accents
 ```
 
 - A chunk that fails with a timeout or `write EOF`: re-render only that chunk, smaller range, `PV_CONC=2`. Do not edit sources while a chunk is bundling. After a one-shot fix, re-render only its chunk and re-join.
-- Check the seam frames at every chunk boundary and a 100% crop for sharpness.
-- **Swap the music without re-rendering** (segments are rendered `--muted`):
-
-  ```bash
-  ffmpeg -y -f concat -safe 0 -i out/seg_list.txt -c copy video_only.mp4
-  ffmpeg -y -i video_only.mp4 -i new_music.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 256k -t <video seconds> -movflags +faststart pv_new_music.mp4
-  ```
+- Check a 100% crop for sharpness; `film_scan.py` covers the chunk seams.
+- **Swap the music without re-rendering**: segments are rendered `--muted`, so `--join` again with another `PV_AUDIO`. The reference's own cuts sit within +-2 frames of its accents 40 times in 56; a new track should come close to that, or move the hits.
 
 - **Delivery bundle**: final film + silent segments (music swaps later) + project without `node_modules`/venvs (export `pip freeze` instead) + AI originals with their prompts + a short retrospective. Exclude login and credential files (the Jimeng CLI keeps an auth file in its working folder); scan the bundle for token-like strings before zipping. ref|ours sheets, `out/review/ref360`, `out/cmp` and side-by-side videos embed reference frames: private bundle only, never shared publicly. Redact `state_*.json` / `run_*.json` (project, node and resource ids, signed URLs) before sharing. Keep the reference video and its music out of anything public.
 
